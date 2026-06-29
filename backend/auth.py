@@ -8,8 +8,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from loguru import logger
+
+try:
+    import bcrypt as _bcrypt
+    _USE_BCRYPT = True
+except ImportError:
+    _USE_BCRYPT = False
+    import hashlib, hmac, secrets
 
 from .config import get_settings
 from .models import (
@@ -17,36 +23,51 @@ from .models import (
     ClientPortalLoginRequest, ClientPortalToken
 )
 
-settings = get_settings()
-
 # ─── Crypto ───────────────────────────────────────────────────────────────────
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt (direct) or SHA-256 fallback."""
+    if _USE_BCRYPT:
+        salt = _bcrypt.gensalt(rounds=12)
+        return _bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    else:
+        # SHA-256 + salt fallback (development only)
+        salt = secrets.token_hex(16)
+        h = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+        return f"sha256:{salt}:{h}"
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    """Verify a password against its hash."""
+    if hashed.startswith('sha256:'):
+        _, salt, h = hashed.split(':', 2)
+        return hmac.compare_digest(
+            hashlib.sha256(f"{salt}:{plain}".encode()).hexdigest(), h
+        )
+    # bcrypt verification
+    try:
+        return _bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        return False
 
 
 # ─── JWT Helpers ──────────────────────────────────────────────────────────────
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    _settings = get_settings()
     to_encode = data.copy()
     expire = datetime.utcnow() + (
-        expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
+        expires_delta or timedelta(minutes=_settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(to_encode, _settings.jwt_secret_key, algorithm=_settings.jwt_algorithm)
 
 
 def decode_token(token: str) -> dict:
+    _settings = get_settings()
     try:
         payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+            token, _settings.jwt_secret_key, algorithms=[_settings.jwt_algorithm]
         )
         return payload
     except JWTError as e:
@@ -82,7 +103,7 @@ async def get_current_user(
         )
 
     from .db import get_user_by_id
-    user = await get_user_by_id(payload["sub"])
+    user = await get_user_by_id(int(payload["sub"]))
     if not user or not user.get("is_active"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,14 +140,14 @@ async def get_current_client_or_staff(
 
     if token_type == "staff":
         from .db import get_user_by_id
-        user = await get_user_by_id(payload["sub"])
+        user = await get_user_by_id(int(payload["sub"]))
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         return {"type": "staff", **user}
 
     elif token_type == "client":
         from .db import get_client
-        client = await get_client(payload["sub"])
+        client = await get_client(int(payload["sub"]))
         if not client:
             raise HTTPException(status_code=401, detail="Client not found")
         return {"type": "client", **client}
@@ -152,7 +173,7 @@ async def staff_login(request: LoginRequest):
             detail="Incorrect email or password",
         )
 
-    token = create_access_token({"sub": user["id"], "type": "staff", "role": user["role"]})
+    token = create_access_token({"sub": str(user["id"]), "type": "staff", "role": user["role"]})
     logger.info(f"Staff login: {request.email}")
 
     return TokenResponse(
@@ -188,7 +209,7 @@ async def client_portal_login(request: ClientPortalLoginRequest):
         )
 
     token = create_access_token(
-        {"sub": client["id"], "type": "client"},
+        {"sub": str(client["id"]), "type": "client"},
         expires_delta=timedelta(hours=12)
     )
     logger.info(f"Client portal login: {request.email}")
@@ -204,6 +225,6 @@ async def client_portal_login(request: ClientPortalLoginRequest):
 async def refresh_token(current_user: dict = Depends(get_current_user)):
     """Refresh staff JWT token."""
     token = create_access_token(
-        {"sub": current_user["id"], "type": "staff", "role": current_user["role"]}
+        {"sub": str(current_user["id"]), "type": "staff", "role": current_user["role"]}
     )
     return {"access_token": token, "token_type": "bearer"}

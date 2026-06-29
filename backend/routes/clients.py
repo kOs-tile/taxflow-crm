@@ -2,6 +2,7 @@
 TaxFlow CRM — Client Routes
 Full CRUD + search/filter + document completion enrichment.
 """
+import sqlite3
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -70,7 +71,12 @@ async def create_new_client(
     if portal_password:
         client_dict["portal_password_hash"] = hash_password(portal_password)
 
-    client = await create_client(client_dict)
+    try:
+        client = await create_client(client_dict)
+    except sqlite3.IntegrityError as e:
+        if "UNIQUE" in str(e).upper():
+            raise HTTPException(status_code=409, detail="A client with this email already exists.")
+        raise HTTPException(status_code=400, detail=str(e))
 
     # Auto-generate standard deadlines
     if auto_deadlines:

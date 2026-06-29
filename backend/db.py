@@ -9,8 +9,15 @@ from loguru import logger
 
 from .config import get_settings
 
-settings = get_settings()
-DB_PATH = settings.database_url
+
+def _db_path() -> str:
+    """Returns the current database path (reads from settings each call — cheap due to lru_cache)."""
+    return get_settings().database_url
+
+
+# Module-level alias updated by tests via: import backend.db as m; m.DB_PATH = "..."
+# Runtime code uses _db_path() so patching DB_PATH also works.
+DB_PATH: str = get_settings().database_url
 
 # ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -106,7 +113,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_client ON tasks(client_id);
 
 async def get_db() -> aiosqlite.Connection:
     """Get a database connection with row factory."""
-    db = await aiosqlite.connect(DB_PATH)
+    db = await aiosqlite.connect(_db_path())
     db.row_factory = aiosqlite.Row
     await db.execute("PRAGMA foreign_keys=ON")
     await db.execute("PRAGMA journal_mode=WAL")
@@ -115,8 +122,8 @@ async def get_db() -> aiosqlite.Connection:
 
 async def init_db():
     """Initialize database schema and default admin user."""
-    logger.info(f"Initializing database at {DB_PATH}")
-    async with aiosqlite.connect(DB_PATH) as db:
+    logger.info(f"Initializing database at {_db_path()}")
+    async with aiosqlite.connect(_db_path()) as db:
         db.row_factory = aiosqlite.Row
         await db.executescript(CREATE_TABLES_SQL)
         await db.commit()
@@ -126,19 +133,22 @@ async def init_db():
             row = await cursor.fetchone()
             if row["cnt"] == 0:
                 from .auth import hash_password
-                admin_hash = hash_password(settings.admin_password)
+                _s = get_settings()
+                admin_hash = hash_password(_s.admin_password)
                 await db.execute(
                     "INSERT INTO users (email, full_name, role, password_hash) VALUES (?, ?, ?, ?)",
-                    (settings.admin_email, "Admin User", "admin", admin_hash)
+                    (_s.admin_email, "Admin User", "admin", admin_hash)
                 )
                 await db.commit()
-                logger.info(f"Created default admin: {settings.admin_email}")
+                logger.info(f"Created default admin: {_s.admin_email}")
 
 
 # ─── User CRUD ────────────────────────────────────────────────────────────────
 
 async def get_user_by_email(email: str) -> Optional[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM users WHERE email = ? AND is_active = 1", (email,)
         ) as cur:
@@ -147,7 +157,9 @@ async def get_user_by_email(email: str) -> Optional[dict]:
 
 
 async def get_user_by_id(user_id: int) -> Optional[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM users WHERE id = ?", (user_id,)
         ) as cur:
@@ -156,7 +168,9 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
 
 
 async def create_user(email: str, full_name: str, role: str, password_hash: str) -> dict:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             "INSERT INTO users (email, full_name, role, password_hash) VALUES (?, ?, ?, ?)",
             (email, full_name, role, password_hash)
@@ -167,7 +181,9 @@ async def create_user(email: str, full_name: str, role: str, password_hash: str)
 
 
 async def list_users() -> list[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT id, email, full_name, role, is_active, created_at FROM users ORDER BY full_name"
         ) as cur:
@@ -186,7 +202,9 @@ async def create_client(data: dict) -> dict:
     values = {f: data.get(f) for f in fields}
     cols = ", ".join(values.keys())
     placeholders = ", ".join("?" * len(values))
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             f"INSERT INTO clients ({cols}) VALUES ({placeholders})",
             list(values.values())
@@ -197,7 +215,9 @@ async def create_client(data: dict) -> dict:
 
 
 async def get_client(client_id: int) -> Optional[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM clients WHERE id = ?", (client_id,)
         ) as cur:
@@ -206,7 +226,9 @@ async def get_client(client_id: int) -> Optional[dict]:
 
 
 async def get_client_by_email(email: str) -> Optional[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM clients WHERE email = ?", (email,)
         ) as cur:
@@ -243,7 +265,9 @@ async def list_clients(
 
     query += " ORDER BY full_name"
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(query, params) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
@@ -256,7 +280,9 @@ async def update_client(client_id: int, data: dict) -> Optional[dict]:
     set_clause = ", ".join(f"{k} = ?" for k in data.keys())
     params = list(data.values()) + [client_id]
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         await db.execute(
             f"UPDATE clients SET {set_clause} WHERE id = ?", params
         )
@@ -265,7 +291,9 @@ async def update_client(client_id: int, data: dict) -> Optional[dict]:
 
 
 async def delete_client(client_id: int) -> bool:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute("DELETE FROM clients WHERE id = ?", (client_id,))
         await db.commit()
         return cur.rowcount > 0
@@ -274,7 +302,9 @@ async def delete_client(client_id: int) -> bool:
 # ─── Document CRUD ────────────────────────────────────────────────────────────
 
 async def create_document(data: dict) -> dict:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             """INSERT OR REPLACE INTO documents
                (client_id, doc_type, tax_year, status, notes)
@@ -295,7 +325,9 @@ async def get_documents_for_client(client_id: int, tax_year: Optional[int] = Non
         params.append(tax_year)
     query += " ORDER BY doc_type"
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(query, params) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
@@ -314,7 +346,9 @@ async def update_document(doc_id: int, data: dict) -> Optional[dict]:
     set_clause = ", ".join(f"{k} = ?" for k in data.keys())
     params = list(data.values()) + [doc_id]
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         await db.execute(
             f"UPDATE documents SET {set_clause} WHERE id = ?", params
         )
@@ -350,7 +384,9 @@ async def get_document_completion(client_id: int, tax_year: Optional[int] = None
 # ─── Deadline CRUD ────────────────────────────────────────────────────────────
 
 async def create_deadline(data: dict) -> dict:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             """INSERT INTO deadlines (client_id, deadline_type, due_date, status, notes, state_code)
                VALUES (?, ?, ?, ?, ?, ?)""",
@@ -363,7 +399,9 @@ async def create_deadline(data: dict) -> dict:
 
 
 async def get_deadlines_for_client(client_id: int) -> list[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM deadlines WHERE client_id = ? ORDER BY due_date",
             (client_id,)
@@ -391,7 +429,9 @@ async def get_upcoming_deadlines(days: int = 30, preparer_id: Optional[int] = No
 
     query += " ORDER BY d.due_date"
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(query, params) as cur:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
@@ -406,7 +446,9 @@ async def update_deadline(deadline_id: int, data: dict) -> Optional[dict]:
     set_clause = ", ".join(f"{k} = ?" for k in data.keys())
     params = list(data.values()) + [deadline_id]
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         await db.execute(
             f"UPDATE deadlines SET {set_clause} WHERE id = ?", params
         )
@@ -417,7 +459,9 @@ async def update_deadline(deadline_id: int, data: dict) -> Optional[dict]:
 
 
 async def delete_deadline(deadline_id: int) -> bool:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute("DELETE FROM deadlines WHERE id = ?", (deadline_id,))
         await db.commit()
         return cur.rowcount > 0
@@ -479,7 +523,9 @@ def auto_generate_deadlines(client_id: int, entity_type: str, tax_year: int) -> 
 # ─── Message CRUD ─────────────────────────────────────────────────────────────
 
 async def create_message(client_id: int, sender_role: str, content: str, sender_name: Optional[str] = None) -> dict:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             "INSERT INTO messages (client_id, sender_role, sender_name, content) VALUES (?, ?, ?, ?)",
             (client_id, sender_role, sender_name, content)
@@ -490,7 +536,9 @@ async def create_message(client_id: int, sender_role: str, content: str, sender_
 
 
 async def get_messages_for_client(client_id: int, limit: int = 100) -> list[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM messages WHERE client_id = ? ORDER BY created_at DESC LIMIT ?",
             (client_id, limit)
@@ -501,7 +549,9 @@ async def get_messages_for_client(client_id: int, limit: int = 100) -> list[dict
 
 async def mark_messages_read(client_id: int, sender_role: str) -> int:
     """Mark all messages from a specific role as read."""
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             "UPDATE messages SET read = 1 WHERE client_id = ? AND sender_role = ? AND read = 0",
             (client_id, sender_role)
@@ -512,7 +562,9 @@ async def mark_messages_read(client_id: int, sender_role: str) -> int:
 
 async def get_unread_message_counts() -> dict[int, int]:
     """Returns {client_id: unread_count} for all clients with unread messages."""
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             """SELECT client_id, COUNT(*) as cnt FROM messages
                WHERE sender_role = 'client' AND read = 0
@@ -524,7 +576,9 @@ async def get_unread_message_counts() -> dict[int, int]:
 
 async def get_all_message_threads() -> list[dict]:
     """Get latest message per client for inbox view."""
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             """SELECT m.client_id, c.full_name as client_name,
                       m.content as last_message, m.created_at as last_at,
@@ -546,7 +600,9 @@ async def get_all_message_threads() -> list[dict]:
 # ─── Task CRUD ────────────────────────────────────────────────────────────────
 
 async def create_task(data: dict) -> dict:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         cur = await db.execute(
             """INSERT INTO tasks (client_id, title, description, due_date, priority, assigned_to_id)
                VALUES (?, ?, ?, ?, ?, ?)""",
@@ -560,7 +616,9 @@ async def create_task(data: dict) -> dict:
 
 
 async def get_tasks_for_client(client_id: int) -> list[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             "SELECT * FROM tasks WHERE client_id = ? ORDER BY completed, due_date NULLS LAST, priority",
             (client_id,)
@@ -584,7 +642,9 @@ async def update_task(task_id: int, data: dict) -> Optional[dict]:
     set_clause = ", ".join(f"{k} = ?" for k in data.keys())
     params = list(data.values()) + [task_id]
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         await db.execute(
             f"UPDATE tasks SET {set_clause} WHERE id = ?", params
         )
@@ -602,7 +662,9 @@ async def get_dashboard_stats() -> dict:
     in_7 = (date.today() + timedelta(days=7)).isoformat()
     in_30 = (date.today() + timedelta(days=30)).isoformat()
 
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async def scalar(sql, params=()):
             async with db.execute(sql, params) as c:
                 row = await c.fetchone()
@@ -649,7 +711,9 @@ async def get_dashboard_stats() -> dict:
 
 
 async def get_recent_activity(limit: int = 20) -> list[dict]:
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         activity = []
 
         # Recent documents
@@ -697,7 +761,9 @@ async def get_recent_activity(limit: int = 20) -> list[dict]:
 
 async def get_at_risk_clients() -> list[dict]:
     today = date.today().isoformat()
-    async with await get_db() as db:
+    async with aiosqlite.connect(_db_path()) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
         async with db.execute(
             """SELECT DISTINCT c.*
                FROM clients c
