@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — TaxFlow CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); justify-content:center; align-items:center;">
+
+<div class="login-wrap" style="position:relative;flex-direction:column">
+  <!-- Background decorative dots -->
+  <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:0.08">
+    <div style="position:absolute;top:15%;left:10%;width:200px;height:200px;border-radius:50%;border:2px solid white"></div>
+    <div style="position:absolute;bottom:20%;right:15%;width:300px;height:300px;border-radius:50%;border:1px solid white"></div>
+  </div>
+
+  <div class="login-card" style="z-index:1">
+    <div class="login-logo">
+      <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="#1A56DB"/>
+        <path d="M8 10h16M8 16h10M8 22h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="24" cy="22" r="4" fill="white" opacity="0.9"/>
+        <path d="M22.5 22l1 1 2-2" stroke="#1A56DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div style="font-size:20px;font-weight:800;color:var(--text-primary);letter-spacing:-0.4px">TaxFlow</div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px">CRM for Tax Professionals</div>
+      </div>
+    </div>
+
+    <h2 class="login-title">Welcome back</h2>
+    <p class="login-sub">Sign in to your TaxFlow account</p>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input
+          type="email"
+          id="email"
+          class="form-control"
+          placeholder="you@yourfirm.com"
+          required
+          autocomplete="email"
+          value="admin@taxflow.app"
+        />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          class="form-control"
+          placeholder="••••••••"
+          required
+          autocomplete="current-password"
+          value="TaxFlow2025!"
+        />
+      </div>
+
+      <div id="login-error" style="display:none;color:var(--red-text);background:var(--red-light);padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:14px"></div>
+
+      <button type="submit" class="btn btn-primary w-full" id="login-btn">
+        Sign In
+      </button>
+    </form>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);text-align:center">
+      <a href="/portal" style="font-size:13px;color:var(--text-muted)">
+        Client portal login →
+      </a>
+    </div>
+
+    <div style="margin-top:16px;padding:12px;background:var(--accent-light);border-radius:var(--radius);font-size:12px;color:var(--accent)">
+      <strong>Demo credentials:</strong><br/>
+      Email: admin@taxflow.app · Password: TaxFlow2025!
+    </div>
+  </div>
+</div>
+
+<script>
+  // Redirect if already logged in
+  if (localStorage.getItem('taxflow_token')) {
+    window.location.href = '/';
+  }
+
+  const API_BASE = '/api';
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+      localStorage.setItem('taxflow_token', data.access_token);
+      localStorage.setItem('taxflow_user', JSON.stringify(data.user));
+      window.location.href = '/';
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  });
+</script>
+</body>
+</html>

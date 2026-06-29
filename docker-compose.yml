@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  taxflow:
+    build: .
+    container_name: taxflow-crm
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./taxflow.db:/app/taxflow.db
+      - ./.env:/app/.env
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

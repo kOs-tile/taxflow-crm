@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Messages — TaxFlow CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#1A56DB"/><path d="M8 10h16M8 16h10M8 22h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="22" r="4" fill="white" opacity="0.9"/><path d="M22.5 22l1 1 2-2" stroke="#1A56DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div class="sidebar-logo-text"><span class="sidebar-logo-name">TaxFlow</span><span class="sidebar-logo-sub">CRM for CPAs</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Main</div>
+    <a href="/" class="nav-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+    <a href="/clients" class="nav-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Clients</a>
+    <a href="/messages" class="nav-item active"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Messages<span id="msg-badge" class="nav-badge" style="display:none">0</span></a>
+    <div class="sidebar-section-label">AI</div>
+    <a href="/assistant" class="nav-item"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>AI Assistant</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sidebar-avatar">U</div>
+      <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebar-user-name">Loading...</div><div class="sidebar-user-role" id="sidebar-user-role">preparer</div></div>
+      <button class="btn-logout" id="btn-logout"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+    </div>
+  </div>
+</aside>
+
+<main class="main-content">
+  <header class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">Messages</h1>
+      <span id="unread-total" class="badge badge-red" style="margin-left:8px;display:none"></span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="loadThreads()">↻ Refresh</button>
+  </header>
+
+  <div class="page-body" style="padding:0">
+    <div style="display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 60px)">
+
+      <!-- Inbox List -->
+      <div style="border-right:1px solid var(--border);overflow-y:auto;background:var(--bg-card)">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px">
+          Conversations
+        </div>
+        <div id="thread-list">
+          <div style="padding:16px"><div class="skeleton" style="height:200px"></div></div>
+        </div>
+      </div>
+
+      <!-- Active Thread -->
+      <div style="display:flex;flex-direction:column;background:var(--bg-page)" id="thread-panel">
+        <div class="empty-state" style="flex:1;display:flex;flex-direction:column;justify-content:center">
+          <div class="empty-state-icon">💬</div>
+          <div class="empty-state-title">Select a conversation</div>
+          <div class="empty-state-sub">Choose a client from the left to view the message thread</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+let activeClientId = null;
+
+async function initPage() {
+  await loadThreads();
+}
+
+async function loadThreads() {
+  try {
+    const threads = await API.threads();
+    const listEl = document.getElementById('thread-list');
+
+    let totalUnread = 0;
+    threads.forEach(t => { totalUnread += t.unread_count || 0; });
+
+    const badge = document.getElementById('unread-total');
+    if (totalUnread > 0) {
+      badge.textContent = `${totalUnread} unread`;
+      badge.style.display = 'inline-flex';
+      document.getElementById('msg-badge').textContent = totalUnread;
+      document.getElementById('msg-badge').style.display = 'inline-flex';
+    }
+
+    if (!threads.length) {
+      listEl.innerHTML = `<div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <div class="empty-state-title">No messages yet</div>
+        <div class="empty-state-sub">Messages from clients appear here</div>
+      </div>`;
+      return;
+    }
+
+    listEl.innerHTML = threads.map(t => `
+      <div class="inbox-item ${t.unread_count > 0 ? 'unread' : ''}"
+           id="thread-item-${t.client_id}"
+           onclick="openThread(${t.client_id}, '${escapeHtml(t.client_name)}')">
+        <div class="inbox-avatar">${t.client_name[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px">
+            <div class="inbox-name">${escapeHtml(t.client_name)}</div>
+            ${t.unread_count > 0 ? `<span class="nav-badge">${t.unread_count}</span>` : ''}
+          </div>
+          <div class="inbox-preview">${escapeHtml(t.last_message || '')}</div>
+          <div class="inbox-time">${timeAgo(t.last_at)}</div>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    showToast('Could not load threads: ' + e.message, 'error');
+  }
+}
+
+async function openThread(clientId, clientName) {
+  activeClientId = clientId;
+
+  // Highlight active thread
+  document.querySelectorAll('.inbox-item').forEach(el => {
+    el.style.background = '';
+    el.classList.remove('unread');
+  });
+  const item = document.getElementById(`thread-item-${clientId}`);
+  if (item) item.style.background = 'var(--accent-light)';
+
+  // Load messages
+  try {
+    const messages = await API.messages(clientId); // marks read
+    await API.markRead(clientId);
+
+    // Reload thread list to update unread badges
+    loadThreads();
+
+    // Connect SSE for this client
+    connectSSE(clientId);
+
+    const panel = document.getElementById('thread-panel');
+    panel.innerHTML = `
+      <div style="padding:16px 20px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-weight:700">${clientName[0].toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600">${escapeHtml(clientName)}</div>
+            <div class="text-sm text-muted">Client</div>
+          </div>
+        </div>
+        <a href="/clients/${clientId}" class="btn btn-secondary btn-sm">View Profile</a>
+      </div>
+      <div class="message-thread" id="message-thread" style="flex:1;max-height:none;padding:20px">
+        ${messages.length
+          ? messages.map(renderMessage).join('')
+          : '<div class="empty-state"><div class="empty-state-icon">💬</div><div class="empty-state-title">No messages yet</div></div>'}
+      </div>
+      <div class="message-compose" style="border-top:1px solid var(--border)">
+        <textarea id="message-input" class="message-input" rows="2" placeholder="Type a reply..."></textarea>
+        <button class="btn btn-primary btn-icon" onclick="sendReply(${clientId})">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>`;
+
+    const thread = document.getElementById('message-thread');
+    thread.scrollTop = thread.scrollHeight;
+
+    document.getElementById('message-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(clientId); }
+    });
+
+  } catch (e) {
+    showToast('Could not load messages', 'error');
+  }
+}
+
+async function sendReply(clientId) {
+  const input = document.getElementById('message-input');
+  const content = input.value.trim();
+  if (!content) return;
+  input.value = '';
+  try {
+    const msg = await API.sendMessage(clientId, content);
+    appendMessageToThread(msg);
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+</script>
+</body>
+</html>

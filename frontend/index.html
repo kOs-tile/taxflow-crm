@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — TaxFlow CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ─── Sidebar ─────────────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <!-- TaxFlow SVG Logo -->
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-label="TaxFlow logo">
+      <rect width="32" height="32" rx="8" fill="#1A56DB"/>
+      <path d="M8 10h16M8 16h10M8 22h13" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="24" cy="22" r="4" fill="white" opacity="0.9"/>
+      <path d="M22.5 22l1 1 2-2" stroke="#1A56DB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="sidebar-logo-text">
+      <span class="sidebar-logo-name">TaxFlow</span>
+      <span class="sidebar-logo-sub">CRM for CPAs</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="sidebar-section-label">Main</div>
+    <a href="/" class="nav-item active">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="/clients" class="nav-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Clients
+    </a>
+    <a href="/messages" class="nav-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Messages
+      <span id="msg-badge" class="nav-badge" style="display:none">0</span>
+    </a>
+
+    <div class="sidebar-section-label">Tax Work</div>
+    <a href="/clients#deadlines" class="nav-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Deadlines
+    </a>
+    <a href="/clients#documents" class="nav-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Documents
+    </a>
+
+    <div class="sidebar-section-label">AI</div>
+    <a href="/assistant" class="nav-item">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>
+      AI Assistant
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar" id="sidebar-avatar">U</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-user-name">Loading...</div>
+        <div class="sidebar-user-role" id="sidebar-user-role">preparer</div>
+      </div>
+      <button class="btn-logout" id="btn-logout" title="Sign out">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<!-- ─── Main Content ──────────────────────────────────────────────── -->
+<main class="main-content">
+  <header class="page-header">
+    <div class="page-header-left">
+      <h1 class="page-title">Dashboard</h1>
+      <span class="page-breadcrumb" id="tax-season-badge"></span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span id="today-date" style="font-size:13px;color:var(--text-muted)"></span>
+      <a href="/clients" class="btn btn-primary btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Client
+      </a>
+    </div>
+  </header>
+
+  <div class="page-body">
+    <!-- Stats Grid -->
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card skeleton" style="height:96px"></div>
+      <div class="stat-card skeleton" style="height:96px"></div>
+      <div class="stat-card skeleton" style="height:96px"></div>
+      <div class="stat-card skeleton" style="height:96px"></div>
+    </div>
+
+    <!-- Two-column layout -->
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start">
+
+      <!-- Left: Upcoming Deadlines + At-Risk Clients -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Upcoming Deadlines -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Upcoming Deadlines <span id="deadlines-count" class="badge badge-blue" style="margin-left:6px">—</span></span>
+            <a href="/clients#deadlines" class="btn btn-ghost btn-sm">View all</a>
+          </div>
+          <div id="deadlines-list" style="padding:0">
+            <div class="empty-state"><div class="skeleton" style="height:200px;border-radius:0"></div></div>
+          </div>
+        </div>
+
+        <!-- At-Risk Clients -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">⚠️ At-Risk Clients</span>
+            <a href="/clients?at_risk=1" class="btn btn-ghost btn-sm">View all</a>
+          </div>
+          <div id="at-risk-list">
+            <div style="padding:12px"><div class="skeleton" style="height:120px"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Activity Feed -->
+      <div class="card" style="position:sticky;top:76px">
+        <div class="card-header">
+          <span class="card-title">Recent Activity</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+        </div>
+        <div id="activity-feed" style="max-height:520px;overflow-y:auto">
+          <div style="padding:12px"><div class="skeleton" style="height:300px"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script src="/static/app.js"></script>
+<script>
+async function initPage() {
+  // Set today's date
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  });
+
+  // Tax season notice
+  const month = new Date().getMonth() + 1;
+  const badge = document.getElementById('tax-season-badge');
+  if (month >= 1 && month <= 4) {
+    badge.innerHTML = '<span class="badge badge-red" style="margin-left:4px">🗓 Tax Season Active</span>';
+  } else if (month >= 9 && month <= 10) {
+    badge.innerHTML = '<span class="badge badge-yellow" style="margin-left:4px">⏰ Extension Season</span>';
+  }
+
+  await loadDashboard();
+  await loadUnreadCount();
+}
+
+async function loadUnreadCount() {
+  try {
+    const stats = await API.stats();
+    const badge = document.getElementById('msg-badge');
+    if (badge && stats.unread_messages > 0) {
+      badge.textContent = stats.unread_messages;
+      badge.style.display = 'inline-flex';
+    }
+  } catch (e) {}
+}
+
+async function loadDashboard() {
+  try {
+    const data = await API.dashboard();
+    renderStats(data.stats);
+    renderDeadlines(data.upcoming_deadlines);
+    renderAtRisk(data.at_risk_clients);
+    renderActivity(data.recent_activity);
+  } catch (e) {
+    showToast('Could not load dashboard: ' + e.message, 'error');
+  }
+}
+
+function renderStats(stats) {
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card accent">
+      <div class="stat-label">Total Clients</div>
+      <div class="stat-value">${stats.active_clients}</div>
+      <div class="stat-sub">${stats.total_clients} total (${stats.total_clients - stats.active_clients} inactive)</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Docs Received This Week</div>
+      <div class="stat-value">${stats.docs_received_this_week}</div>
+      <div class="stat-sub">Documents submitted</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-label">Deadlines in 7 Days</div>
+      <div class="stat-value">${stats.deadlines_in_7_days}</div>
+      <div class="stat-sub">${stats.deadlines_in_30_days} in 30 days</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">At-Risk Clients</div>
+      <div class="stat-value">${stats.at_risk_clients}</div>
+      <div class="stat-sub">${stats.unread_messages} unread messages</div>
+    </div>`;
+}
+
+function renderDeadlines(deadlines) {
+  const el = document.getElementById('deadlines-list');
+  document.getElementById('deadlines-count').textContent = deadlines.length;
+
+  if (!deadlines.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">✅</div>
+      <div class="empty-state-title">No deadlines in the next 14 days</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = `<table>
+    <thead><tr>
+      <th>Client</th><th>Deadline</th><th>Due Date</th><th>Days</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+    ${deadlines.map(d => {
+      const days = d.days_until;
+      const daysLabel = days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? 'Today' : `${days}d`;
+      const daysClass = days < 0 ? 'badge-red' : days <= 7 ? 'badge-red' : days <= 30 ? 'badge-yellow' : 'badge-blue';
+      return `<tr onclick="window.location='/clients/${d.client_id}'" style="cursor:pointer">
+        <td><strong>${escapeHtml(d.client_name || '')}</strong></td>
+        <td style="font-size:13px">${escapeHtml(d.deadline_type)}</td>
+        <td>${formatDate(d.due_date)}</td>
+        <td><span class="badge ${daysClass}">${daysLabel}</span></td>
+        <td>${deadlineStatusBadge(d.status)}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderAtRisk(clients) {
+  const el = document.getElementById('at-risk-list');
+  if (!clients.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">🎉</div>
+      <div class="empty-state-title">No at-risk clients</div>
+      <div class="empty-state-sub">All clients are on track</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>Client</th><th>Type</th><th>Doc Progress</th></tr></thead>
+    <tbody>
+    ${clients.map(c => `
+      <tr onclick="window.location='/clients/${c.id}'" style="cursor:pointer">
+        <td>
+          <div style="font-weight:600">${escapeHtml(c.full_name)}</div>
+          <div class="text-sm text-muted">${c.email}</div>
+        </td>
+        <td>${entityBadge(c.entity_type)}</td>
+        <td>${completionBar(c.document_completion_pct || 0)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderActivity(items) {
+  const el = document.getElementById('activity-feed');
+  if (!items.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-title">No recent activity</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = items.map(item => `
+    <div style="display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer"
+         onclick="${item.client_id ? `window.location='/clients/${item.client_id}'` : ''}">
+      <span style="font-size:18px;flex-shrink:0">${item.icon || '📌'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;color:var(--text-primary)">${escapeHtml(item.description)}</div>
+        <div class="text-sm text-muted">${timeAgo(item.timestamp)}</div>
+      </div>
+    </div>`).join('');
+}
+</script>
+</body>
+</html>
