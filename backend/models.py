@@ -4,9 +4,9 @@ These are the API-layer models. Database schemas live in db.py.
 """
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
@@ -364,19 +364,21 @@ class ClientPortalToken(BaseModel):
 # ─── AI Assistant Models ──────────────────────────────────────────────────────
 
 class AssistantMessage(BaseModel):
-    role: str  # "user" | "assistant" | "system"
+    # Clients may replay only ordinary conversation turns. "system" is reserved
+    # for server-owned policy/context so request payloads cannot inject it.
+    role: Literal["user", "assistant"]
     content: str
 
 
 class AssistantChatRequest(BaseModel):
     client_id: Optional[int] = None  # None = global query
     message: str
-    conversation_history: Optional[list[AssistantMessage]] = []
+    conversation_history: list[AssistantMessage] = Field(default_factory=list)
 
 
 class AssistantChatResponse(BaseModel):
     reply: str
-    suggested_actions: Optional[list[str]] = []
+    suggested_actions: list[str] = Field(default_factory=list)
     referenced_client: Optional[str] = None
     context_privacy_mode: str = "minimum"
     client_identity_sent: bool = False
