@@ -161,7 +161,8 @@ class ClientBase(BaseModel):
 
 
 class ClientCreate(ClientBase):
-    pass
+    # Accepted in the JSON body so credentials never need to appear in the URL.
+    portal_password: Optional[str] = None
 
 
 class ClientUpdate(BaseModel):
@@ -183,7 +184,6 @@ class ClientUpdate(BaseModel):
 class ClientOut(ClientBase):
     id: int
     created_at: datetime
-    portal_password_hash: Optional[str] = None
     document_completion_pct: Optional[float] = None
     upcoming_deadline_count: Optional[int] = None
     unread_message_count: Optional[int] = None
