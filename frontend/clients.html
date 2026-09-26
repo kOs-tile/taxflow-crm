@@ -275,16 +275,12 @@ document.getElementById('add-client-form').addEventListener('submit', async (e) 
   // Clean up empty fields
   Object.keys(data).forEach(k => { if (data[k] === '') delete data[k]; });
 
-  const portalPassword = data.portal_password;
-  delete data.portal_password;
   delete data.auto_deadlines;
   data.tax_year = parseInt(data.tax_year) || 2024;
 
   try {
     const params = new URLSearchParams();
     params.set('auto_deadlines', 'true');
-    if (portalPassword) params.set('portal_password', portalPassword);
-
     const client = await fetch(`/api/clients?${params}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${State.token}` },
