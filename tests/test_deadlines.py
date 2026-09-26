@@ -55,8 +55,45 @@ class TestDeadlineAutoGeneration:
             (d for d in deadlines if "Federal Return" in d["deadline_type"]), None
         )
         assert return_deadline is not None
-        # S-Corp due March 15, 2025 for tax year 2024
-        assert return_deadline["due_date"] == "2025-03-15"
+        # March 15, 2025 is Saturday, so the demo generator advances to Monday.
+        assert return_deadline["due_date"] == "2025-03-17"
+
+    async def test_ccorp_uses_april_return_deadline(self, client, auth_headers):
+        """Calendar-year C-Corp demo deadline must not reuse the S-Corp March date."""
+        r = await client.post(
+            "/api/clients?auto_deadlines=true",
+            json={
+                "full_name": "Deadline Auto Test CCorp",
+                "email": "deadline.ccorp@example.com",
+                "entity_type": "c_corp",
+                "tax_year": 2024,
+            },
+            headers=auth_headers,
+        )
+        cid = r.json()["id"]
+        res = await client.get(f"/api/deadlines/client/{cid}", headers=auth_headers)
+        deadlines = res.json()
+        return_deadline = next(
+            (d for d in deadlines if "Federal Return" in d["deadline_type"]), None
+        )
+        assert return_deadline is not None
+        assert return_deadline["due_date"] == "2025-04-15"
+
+    async def test_llc_deadlines_fail_closed_without_tax_classification(self, client, auth_headers):
+        """LLC legal form alone is insufficient to infer a federal filing calendar."""
+        r = await client.post(
+            "/api/clients?auto_deadlines=true",
+            json={
+                "full_name": "Ambiguous LLC",
+                "email": "ambiguous.llc@example.com",
+                "entity_type": "llc",
+                "tax_year": 2024,
+            },
+            headers=auth_headers,
+        )
+        cid = r.json()["id"]
+        res = await client.get(f"/api/deadlines/client/{cid}", headers=auth_headers)
+        assert res.json() == []
 
     async def test_partnership_deadlines_generated(self, client, auth_headers):
         """Partnership clients get March 15 deadline."""
