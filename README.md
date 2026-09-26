@@ -51,7 +51,7 @@ Status per document: **Awaiting → Received → Reviewed → N/A**
 Completion percentage calculated automatically and displayed on dashboard.
 
 ### 3. Deadline Tracker
-Auto-generated based on entity type for any tax year:
+Auto-generated for tax classifications the demo can identify safely. LLC legal form alone is intentionally not auto-mapped because its federal tax classification can vary:
 
 **Individual (1040)**
 - April 15 — Federal return
@@ -180,15 +180,15 @@ Separate login for clients (`/portal`):
 | **Jan 15, 2025** | Q4 2024 estimated tax payment |
 | **Jan 31, 2025** | W-2 and 1099-NEC employer filing |
 | **Feb 18, 2025** | 1099-B, 1099-DIV consolidated statements |
-| **Mar 15, 2025** | S-Corp (1120-S) and Partnership (1065) returns |
+| **Mar 17, 2025** | S-Corp (1120-S) and Partnership (1065) returns (Mar 15 falls on Saturday) |
 | **Apr 15, 2025** | Individual 1040, C-Corp 1120, FBAR |
 | **Apr 15, 2025** | Q1 2025 estimated tax payment |
-| **Jun 15, 2025** | Q2 2025 estimated tax payment |
+| **Jun 16, 2025** | Q2 2025 estimated tax payment (Jun 15 falls on Sunday) |
 | **Sep 15, 2025** | Q3 2025 estimated tax payment; S-Corp/Partnership extensions |
 | **Oct 15, 2025** | Individual and C-Corp extension deadlines; FBAR extension |
 | **Jan 15, 2026** | Q4 2025 estimated tax payment |
 
-*Deadlines shift to next business day if they fall on a weekend or federal holiday.*
+*The demo generator currently adjusts weekends only. It does not implement a complete federal/state holiday calendar; production use requires an authoritative tax-calendar source.*
 
 ---
 
@@ -208,8 +208,8 @@ pip install -r requirements.txt
 ### 2. Configure
 ```bash
 cp .env.example .env
-# Edit .env to set OPENAI_API_KEY (or DEEPSEEK_API_KEY)
-# All other defaults work for local development
+# Set JWT_SECRET_KEY (32+ chars) and ADMIN_PASSWORD (12+ chars).
+# Optionally set OPENAI_API_KEY or DEEPSEEK_API_KEY for the AI assistant.
 ```
 
 ### 3. Start the server
@@ -227,7 +227,7 @@ python -m scripts.seed
 - API Docs: http://localhost:8000/api/docs
 - Client Portal: http://localhost:8000/portal
 
-**Default login:** admin@taxflow.app / TaxFlow2025!
+**Login:** use the `ADMIN_EMAIL` and `ADMIN_PASSWORD` values you configured in `.env`.
 
 ---
 
@@ -250,10 +250,10 @@ The client portal (`/portal`) is completely separate from the staff CRM:
 
 To set a client's portal password:
 ```
-PATCH /api/clients/{id}/portal-password?password=ClientSecret123
+POST /api/clients/{id}/portal-password\nContent-Type: application/json\n\n{"password":"ClientSecret123"}
 ```
 
-Or pass `?portal_password=...` when creating the client.
+Or include `"portal_password": "..."` in the JSON body when creating the client. Passwords are never accepted in query strings.
 
 ---
 
@@ -352,7 +352,7 @@ Tests use an **in-memory SQLite database** for complete isolation. No server req
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model to use |
 | `DATABASE_URL` | `taxflow.db` | SQLite file path |
 | `ADMIN_EMAIL` | `admin@taxflow.app` | Default admin email |
-| `ADMIN_PASSWORD` | `TaxFlow2025!` | Default admin password |
+| `ADMIN_PASSWORD` | required | Initial admin password (12+ chars; do not commit it) |
 | `EMAIL_ENABLED` | `false` | Enable real SMTP (set SMTP_* vars) |
 
 ---
@@ -396,7 +396,7 @@ POST   /api/portal/messages/send    Client portal send message
 
 ## About
 
-Built by **Onur Kavi** as part of an AI portfolio demonstrating production-quality Python/FastAPI development with AI integration.
+Built by **Onur Kavi** as an AI engineering portfolio/demo project exploring a domain-specific Python/FastAPI application with AI integration.
 
 This project demonstrates:
 - Domain-specific AI applications (not generic chatbots)
