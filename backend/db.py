@@ -467,8 +467,23 @@ async def delete_deadline(deadline_id: int) -> bool:
         return cur.rowcount > 0
 
 
+def _next_weekday(value: date) -> date:
+    """Move Saturday/Sunday deadlines to the next Monday.
+
+    This deliberately does not claim full federal-holiday handling. Production
+    tax software should use an authoritative tax-calendar source.
+    """
+    while value.weekday() >= 5:
+        value += timedelta(days=1)
+    return value
+
+
 def auto_generate_deadlines(client_id: int, entity_type: str, tax_year: int) -> list[dict]:
-    """Generate standard deadlines based on entity type and tax year."""
+    """Generate conservative demo deadlines based on known tax classification.
+
+    LLC is intentionally fail-closed because "LLC" alone does not determine
+    federal tax classification (disregarded entity, partnership, S-Corp, or C-Corp).
+    """
     y = tax_year
     ny = tax_year + 1  # next year (when return is due)
     deadlines = []
@@ -482,10 +497,16 @@ def auto_generate_deadlines(client_id: int, entity_type: str, tax_year: int) -> 
             {"deadline_type": "Q3 Estimated Tax (Sep 15)", "due_date": date(ny, 9, 15)},
             {"deadline_type": "Q4 Estimated Tax (Jan 15)", "due_date": date(ny + 1, 1, 15)},
         ]
-    elif entity_type in ("s_corp", "c_corp"):
+    elif entity_type == "s_corp":
         deadlines = [
             {"deadline_type": "Federal Return (1040/1120/1065)", "due_date": date(ny, 3, 15)},
             {"deadline_type": "Federal Extension", "due_date": date(ny, 9, 15)},
+            {"deadline_type": "W-2/1099 Filing (Jan 31)", "due_date": date(ny, 1, 31)},
+        ]
+    elif entity_type == "c_corp":
+        deadlines = [
+            {"deadline_type": "Federal Return (1040/1120/1065)", "due_date": date(ny, 4, 15)},
+            {"deadline_type": "Federal Extension", "due_date": date(ny, 10, 15)},
             {"deadline_type": "Corporate Estimated Tax", "due_date": date(ny, 4, 15)},
             {"deadline_type": "Corporate Estimated Tax", "due_date": date(ny, 6, 15)},
             {"deadline_type": "Corporate Estimated Tax", "due_date": date(ny, 9, 15)},
@@ -499,14 +520,9 @@ def auto_generate_deadlines(client_id: int, entity_type: str, tax_year: int) -> 
             {"deadline_type": "W-2/1099 Filing (Jan 31)", "due_date": date(ny, 1, 31)},
         ]
     elif entity_type == "llc":
-        deadlines = [
-            {"deadline_type": "Federal Return (1040/1120/1065)", "due_date": date(ny, 4, 15)},
-            {"deadline_type": "Federal Extension", "due_date": date(ny, 10, 15)},
-            {"deadline_type": "Q1 Estimated Tax (Apr 15)", "due_date": date(ny, 4, 15)},
-            {"deadline_type": "Q2 Estimated Tax (Jun 15)", "due_date": date(ny, 6, 15)},
-            {"deadline_type": "Q3 Estimated Tax (Sep 15)", "due_date": date(ny, 9, 15)},
-            {"deadline_type": "Q4 Estimated Tax (Jan 15)", "due_date": date(ny + 1, 1, 15)},
-        ]
+        # "LLC" is a legal entity label, not a federal tax classification.
+        # Refuse to invent a filing calendar until the data model carries the election.
+        deadlines = []
     else:  # sole_proprietor, nonprofit, other
         deadlines = [
             {"deadline_type": "Federal Return (1040/1120/1065)", "due_date": date(ny, 4, 15)},
@@ -514,6 +530,7 @@ def auto_generate_deadlines(client_id: int, entity_type: str, tax_year: int) -> 
         ]
 
     for d in deadlines:
+        d["due_date"] = _next_weekday(d["due_date"])
         d["client_id"] = client_id
         d["status"] = "upcoming"
 
