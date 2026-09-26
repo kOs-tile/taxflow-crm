@@ -94,12 +94,13 @@ class TestClientPortal:
         """Client can log in to portal with correct credentials."""
         # Create client with portal password
         r = await client.post(
-            "/api/clients?auto_deadlines=false&portal_password=PortalPass123",
+            "/api/clients?auto_deadlines=false",
             json={
                 "full_name": "Portal Test Client",
                 "email": "portal.test@example.com",
                 "entity_type": "individual",
                 "tax_year": 2024,
+                "portal_password": "PortalPass123",
             },
             headers=auth_headers,
         )
@@ -118,12 +119,13 @@ class TestClientPortal:
     async def test_portal_login_wrong_password(self, client, auth_headers):
         """Portal login fails with wrong password."""
         await client.post(
-            "/api/clients?auto_deadlines=false&portal_password=RightPass456",
+            "/api/clients?auto_deadlines=false",
             json={
                 "full_name": "Wrong Pass Test",
                 "email": "wrong.pass@example.com",
                 "entity_type": "individual",
                 "tax_year": 2024,
+                "portal_password": "RightPass456",
             },
             headers=auth_headers,
         )
