@@ -4,7 +4,7 @@ Full CRUD + search/filter + document completion enrichment.
 """
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from ..auth import get_current_user, hash_password
 from ..db import (
@@ -130,7 +130,7 @@ async def delete_client_record(
 @router.post("/{client_id}/portal-password")
 async def set_client_portal_password(
     client_id: int,
-    password: str,
+    password: str = Body(..., embed=True, min_length=8),
     current_user: dict = Depends(get_current_user),
 ):
     """Set or update the client's portal login password."""
