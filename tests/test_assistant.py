@@ -208,8 +208,79 @@ class TestAssistantContextBuilding:
         from backend.routes.assistant import TAXFLOW_SYSTEM_PROMPT
 
         assert "1040" in TAXFLOW_SYSTEM_PROMPT
-        assert "April 15" in TAXFLOW_SYSTEM_PROMPT
+        assert "authoritative" in TAXFLOW_SYSTEM_PROMPT.lower()
         assert "W-2" in TAXFLOW_SYSTEM_PROMPT
         assert "1099" in TAXFLOW_SYSTEM_PROMPT
         assert "estimated" in TAXFLOW_SYSTEM_PROMPT.lower()
         assert "extension" in TAXFLOW_SYSTEM_PROMPT.lower()
+
+
+
+def _sensitive_summary():
+    return {
+        "client": {
+            "id": 42,
+            "full_name": "Jane Sensitive",
+            "email": "jane.sensitive@example.com",
+            "phone": "555-0100",
+            "address": "123 Private St",
+            "ssn_last4": "1234",
+            "ein": "12-3456789",
+            "notes": "Private free-form notes",
+            "entity_type": "individual",
+            "filing_status": "single",
+            "tax_year": 2025,
+            "state": "WI",
+            "assigned_preparer_id": 7,
+        },
+        "document_stats": {
+            "completion_pct": 50.0,
+            "received": 1,
+            "reviewed": 0,
+            "awaiting": 1,
+        },
+        "missing_documents": ["W-2"],
+        "upcoming_deadlines": [{"type": "Federal Return", "due": "2026-04-15"}],
+        "missed_deadlines": [],
+        "open_tasks": ["Review W-2"],
+    }
+
+
+def test_minimum_context_excludes_client_identity_and_sensitive_fields():
+    from backend.routes.assistant import build_client_context
+
+    context = build_client_context(_sensitive_summary(), privacy_mode="minimum")
+
+    assert "client:42" in context
+    assert "Jane Sensitive" not in context
+    assert "jane.sensitive@example.com" not in context
+    assert "555-0100" not in context
+    assert "123 Private St" not in context
+    assert "1234" not in context
+    assert "12-3456789" not in context
+    assert "Private free-form notes" not in context
+    assert "W-2" in context
+
+
+def test_identity_context_only_adds_name_and_email_not_sensitive_tax_fields():
+    from backend.routes.assistant import build_client_context
+
+    context = build_client_context(_sensitive_summary(), privacy_mode="identity")
+
+    assert "Jane Sensitive" in context
+    assert "jane.sensitive@example.com" in context
+    assert "555-0100" not in context
+    assert "123 Private St" not in context
+    assert "1234" not in context
+    assert "12-3456789" not in context
+    assert "Private free-form notes" not in context
+
+
+def test_system_prompt_requires_authoritative_deadline_verification():
+    from backend.routes.assistant import TAXFLOW_SYSTEM_PROMPT
+
+    prompt = TAXFLOW_SYSTEM_PROMPT.lower()
+    assert "authoritative" in prompt
+    assert "client context" in prompt
+    assert "do not treat dates" in prompt
+    assert "do not imply that an external action has been performed" in prompt
