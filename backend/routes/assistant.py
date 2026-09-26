@@ -26,15 +26,16 @@ Your role:
 - Analyze client situations and flag potential issues
 - Suggest follow-up actions based on client status
 
-Your expertise covers:
-- Federal tax returns: 1040, 1120, 1120-S, 1065, 990
-- Entity types: Individual, LLC, S-Corp, C-Corp, Partnership, Sole Proprietor
-- Key deadlines: April 15 (individual), March 15 (S-Corp/Partnership), October 15 (extensions)
-- Quarterly estimated taxes: Q1 (Apr 15), Q2 (Jun 15), Q3 (Sep 15), Q4 (Jan 15)
-- Documents: W-2, 1099 forms (NEC, B, INT, DIV, R, MISC), K-1, 1098, Schedule C/E
-- FBAR requirements, foreign account reporting
-- IRS correspondence and notices
-- State tax considerations
+Your domain vocabulary includes:
+- Federal return forms such as 1040, 1120, 1120-S, 1065, and 990
+- Entity types such as Individual, LLC, S-Corp, C-Corp, Partnership, and Sole Proprietor
+- Common tax documents such as W-2, 1099 forms, K-1, 1098, and Schedule C/E
+- Filing, extension, estimated-payment, correspondence, and state-tax workflows
+
+Deadline safety:
+- Do not treat dates embedded in this system prompt or model memory as current authority.
+- For client-specific deadline questions, use only the deadline records supplied in CLIENT CONTEXT.
+- For general/current deadline questions without an authoritative application record, state that the demo has no live authoritative tax-calendar source and recommend verifying the relevant IRS/state source before acting.
 
 Communication style:
 - Professional, clear, and accurate
@@ -42,16 +43,21 @@ Communication style:
 - Flag urgent issues clearly
 - When drafting emails, always include subject line, greeting, and professional signature placeholder
 
-Tax year context: The current date is in 2025/2026. Tax year 2024 returns are filed in 2025.
-Tax year 2025 returns will be filed in 2026.
-
-IMPORTANT: Always clarify if you're providing general guidance vs. client-specific analysis.
-Never give definitive legal/tax advice — recommend consulting with the preparer.
+IMPORTANT:
+- Always distinguish general guidance from client-specific analysis.
+- Never give definitive legal/tax advice; recommend verification by the responsible preparer.
+- Treat CLIENT CONTEXT as operational application data, not as authorization to file, submit, pay, or contact a client.
+- Suggested actions are drafts only; do not imply that an external action has been performed.
 """
 
 
-def build_client_context(summary: dict) -> str:
-    """Build a structured context block from client summary data."""
+def build_client_context(summary: dict, privacy_mode: str = "minimum") -> str:
+    """Build minimized outbound LLM context from client summary data.
+
+    Sensitive CRM fields such as SSN last four, EIN, phone, address, notes, and
+    portal credentials are never included. Full name/email require the explicit
+    "identity" privacy mode; the default uses only an internal client reference.
+    """
     client = summary.get("client", {})
     stats = summary.get("document_stats", {})
     missing = summary.get("missing_documents", [])
@@ -59,10 +65,19 @@ def build_client_context(summary: dict) -> str:
     missed = summary.get("missed_deadlines", [])
     tasks = summary.get("open_tasks", [])
 
+    identity_lines = [
+        f"Client Reference: client:{client.get('id', 'unknown')}",
+    ]
+    if privacy_mode == "identity":
+        identity_lines.extend([
+            f"Name: {client.get('full_name', 'Unknown')}",
+            f"Email: {client.get('email', 'N/A')}",
+        ])
+
     ctx = f"""
 === CLIENT CONTEXT ===
-Name: {client.get('full_name', 'Unknown')}
-Email: {client.get('email', 'N/A')}
+Outbound Privacy Mode: {privacy_mode}
+{chr(10).join(identity_lines)}
 Entity Type: {client.get('entity_type', 'individual')}
 Filing Status: {client.get('filing_status', 'N/A')}
 Tax Year: {client.get('tax_year', 2024)}
@@ -119,6 +134,8 @@ async def assistant_chat(
     # Add client context if provided
     client_context = ""
     client_name = None
+    privacy_mode = getattr(settings, "ai_context_privacy", "minimum")
+    client_identity_sent = False
     if request.client_id:
         try:
             from ..db import get_client
@@ -164,7 +181,8 @@ async def assistant_chat(
                     ],
                     "open_tasks": [t["title"] for t in tasks if not t["completed"]],
                 }
-                client_context = build_client_context(summary)
+                client_context = build_client_context(summary, privacy_mode=privacy_mode)
+                client_identity_sent = privacy_mode == "identity"
                 messages.append({"role": "system", "content": client_context})
 
         except Exception as e:
@@ -201,6 +219,8 @@ async def assistant_chat(
             reply=reply,
             suggested_actions=suggested,
             referenced_client=client_name,
+            context_privacy_mode=privacy_mode,
+            client_identity_sent=client_identity_sent,
         )
 
     except Exception as e:
