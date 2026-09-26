@@ -1,5 +1,8 @@
 # TaxFlow CRM
 
+> **Status — Portfolio/demo project.** TaxFlow demonstrates a vertical SaaS architecture for tax practices. It is **not tax, legal, compliance, or filing software**. Deadline logic is intentionally conservative and incomplete; production use requires authoritative current tax calendars and entity tax-classification data.
+
+
 **Built for CPAs, not generic businesses.**
 
 TaxFlow is an AI-powered practice management system designed specifically for US tax professionals and accounting firms. While generic CRMs treat every document like a "file" and every deadline like a calendar event, TaxFlow understands the difference between a W-2 and a K-1, knows that S-Corps file on March 15th, and can draft a client extension notice without you explaining what Form 4868 is.
@@ -197,7 +200,7 @@ Separate login for clients (`/portal`):
 
 ### 1. Clone and install
 ```bash
-git clone https://github.com/onurkavi/taxflow-crm.git
+git clone https://github.com/kOs-tile/taxflow-crm.git
 cd taxflow-crm
 pip install -r requirements.txt
 ```
