@@ -158,12 +158,13 @@ class TestClientPortal:
     async def test_portal_can_read_own_messages(self, client, auth_headers):
         """Client portal can read their own message thread."""
         r = await client.post(
-            "/api/clients?auto_deadlines=false&portal_password=ReadMyMsgs",
+            "/api/clients?auto_deadlines=false",
             json={
                 "full_name": "Portal Reader Test",
                 "email": "portal.reader@example.com",
                 "entity_type": "individual",
                 "tax_year": 2024,
+                "portal_password": "ReadMyMsgs",
             },
             headers=auth_headers,
         )
@@ -193,12 +194,13 @@ class TestClientPortal:
     async def test_portal_can_send_message(self, client, auth_headers):
         """Client portal can send a message to staff."""
         r = await client.post(
-            "/api/clients?auto_deadlines=false&portal_password=SendMsg456",
+            "/api/clients?auto_deadlines=false",
             json={
                 "full_name": "Portal Sender Test",
                 "email": "portal.sender@example.com",
                 "entity_type": "individual",
                 "tax_year": 2024,
+                "portal_password": "SendMsg456",
             },
             headers=auth_headers,
         )
