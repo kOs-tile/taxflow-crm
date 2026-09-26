@@ -378,6 +378,8 @@ class AssistantChatResponse(BaseModel):
     reply: str
     suggested_actions: Optional[list[str]] = []
     referenced_client: Optional[str] = None
+    context_privacy_mode: str = "minimum"
+    client_identity_sent: bool = False
 
 
 # ─── Dashboard Models ─────────────────────────────────────────────────────────
