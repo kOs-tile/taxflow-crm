@@ -116,7 +116,7 @@ class TestDeadlineAutoGeneration:
             (d for d in deadlines if "Federal Return" in d["deadline_type"]), None
         )
         assert return_deadline is not None
-        assert return_deadline["due_date"] == "2025-03-15"
+        assert return_deadline["due_date"] == "2025-03-17"
 
     async def test_individual_return_due_april_15(self, client, auth_headers):
         """Individual 1040 is due April 15."""
