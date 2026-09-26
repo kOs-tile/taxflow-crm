@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
+    ai_context_privacy: Literal["minimum", "identity"] = "minimum"
 
     # ── Email (optional) ─────────────────────────────────────────────────────
     email_enabled: bool = False
