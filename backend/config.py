@@ -5,6 +5,7 @@ Uses Pydantic Settings for environment-based configuration with .env support.
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # ── Security ─────────────────────────────────────────────────────────────
-    jwt_secret_key: str = "dev-secret-change-in-production-abc123xyz"
+    jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 480  # 8 hours for staff
 
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
 
     # ── Default Admin ─────────────────────────────────────────────────────────
     admin_email: str = "admin@taxflow.app"
-    admin_password: str = "TaxFlow2025!"
+    admin_password: str = Field(min_length=12)
 
     @property
     def ai_api_key(self) -> str:
