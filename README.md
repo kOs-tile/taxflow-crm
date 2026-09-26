@@ -81,7 +81,7 @@ Visual timeline per client. At-risk detection for missed or overdue deadlines.
 
 Powered by **OpenAI GPT-4o-mini** or **DeepSeek** (your choice).
 
-The assistant has full access to each client's profile, document status, deadlines, and recent messages. Not a generic chatbot — a tax-aware CPA assistant.
+The assistant uses a **minimized operational context**, not the full client record. By default the outbound LLM context contains an internal client reference plus filing/workflow status, document status, deadlines, and open tasks. Name/email require explicit `AI_CONTEXT_PRIVACY=identity`; SSN last4, EIN, phone, address, free-form notes, and portal credentials are never inserted into the LLM context.
 
 **Example prompts:**
 ```
@@ -108,6 +108,20 @@ The assistant has full access to each client's profile, document status, deadlin
 → Dear Dr. Westlake, We are filing Form 7004 for Westlake Family
   Dentistry S-Corp to request an automatic 6-month extension...
 ```
+
+### AI context boundary
+
+TaxFlow treats the external model as a separate data boundary:
+
+- default `AI_CONTEXT_PRIVACY=minimum`
+- full name/email withheld by default
+- explicit `identity` mode can add only name/email
+- SSN last4, EIN, phone, address, notes, and portal credentials are excluded in all modes
+- client-specific deadline reasoning must use stored application deadline records
+- general/current deadline answers without an authoritative application record must recommend verification
+- AI suggestions are drafts; they do not imply filing, payment, messaging, or another external action occurred
+
+The chat response reports `context_privacy_mode` and `client_identity_sent` so the UI/audit layer can see which outbound context policy was active.
 
 ### 6. Dashboard
 - Total clients · Docs received this week · Deadlines in 7 days · At-risk clients
@@ -349,6 +363,7 @@ Tests use an **in-memory SQLite database** for complete isolation. No server req
 | `OPENAI_API_KEY` | optional | OpenAI API key for AI assistant |
 | `DEEPSEEK_API_KEY` | optional | DeepSeek API key (set `AI_PROVIDER=deepseek`) |
 | `AI_PROVIDER` | `openai` | `openai` or `deepseek` |
+| `AI_CONTEXT_PRIVACY` | `minimum` | `minimum` or explicit `identity` outbound LLM context |
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model to use |
 | `DATABASE_URL` | `taxflow.db` | SQLite file path |
 | `ADMIN_EMAIL` | `admin@taxflow.app` | Default admin email |
