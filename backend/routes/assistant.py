@@ -135,6 +135,8 @@ async def assistant_chat(
     client_context = ""
     client_name = None
     privacy_mode = getattr(settings, "ai_context_privacy", "minimum")
+    if privacy_mode not in {"minimum", "identity"}:
+        privacy_mode = "minimum"
     client_identity_sent = False
     if request.client_id:
         try:
@@ -225,7 +227,10 @@ async def assistant_chat(
 
     except Exception as e:
         logger.error(f"AI assistant error: {e}")
-        raise HTTPException(status_code=503, detail=f"AI service error: {str(e)}")
+        raise HTTPException(
+            status_code=503,
+            detail="AI service unavailable. No external action was performed.",
+        )
 
 
 def _extract_suggested_actions(user_message: str, ai_reply: str) -> list[str]:
