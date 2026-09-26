@@ -62,11 +62,11 @@ async def list_all_clients(
 async def create_new_client(
     data: ClientCreate,
     auto_deadlines: bool = Query(True, description="Auto-generate standard deadlines"),
-    portal_password: Optional[str] = Query(None, description="Set client portal password"),
     current_user: dict = Depends(get_current_user),
 ):
     """Create a new client. Optionally auto-generates tax deadlines."""
-    client_dict = data.model_dump()
+    portal_password = data.portal_password
+    client_dict = data.model_dump(exclude={"portal_password"})
 
     if portal_password:
         client_dict["portal_password_hash"] = hash_password(portal_password)
