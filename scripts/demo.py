@@ -25,16 +25,18 @@ Make sure the server is running: uvicorn backend.main:app --reload
 """)
 
     import httpx
+    from backend.config import get_settings
 
     BASE = "http://localhost:8000/api"
+    settings = get_settings()
 
     async with httpx.AsyncClient() as client:
 
         # ── Step 1: Login ─────────────────────────────────────────────
         print("━━━ Step 1: Staff Login ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         res = await client.post(f"{BASE}/auth/login", json={
-            "email": "admin@taxflow.app",
-            "password": "TaxFlow2025!"
+            "email": settings.admin_email,
+            "password": settings.admin_password
         })
         if res.status_code != 200:
             print("❌ Login failed. Have you run: python -m scripts.seed ?")
