@@ -7,15 +7,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from loguru import logger
 
-try:
-    import bcrypt as _bcrypt
-    _USE_BCRYPT = True
-except ImportError:
-    _USE_BCRYPT = False
-    import hashlib, hmac, secrets
+import bcrypt as _bcrypt
 
 from .config import get_settings
 from .models import (
@@ -26,28 +22,17 @@ from .models import (
 # ─── Crypto ───────────────────────────────────────────────────────────────────
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt (direct) or SHA-256 fallback."""
-    if _USE_BCRYPT:
-        salt = _bcrypt.gensalt(rounds=12)
-        return _bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-    else:
-        # SHA-256 + salt fallback (development only)
-        salt = secrets.token_hex(16)
-        h = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
-        return f"sha256:{salt}:{h}"
+    """Generate a bcrypt password hash; fail closed when bcrypt is unavailable."""
+    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt(rounds=12)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify a password against its hash."""
-    if hashed.startswith('sha256:'):
-        _, salt, h = hashed.split(':', 2)
-        return hmac.compare_digest(
-            hashlib.sha256(f"{salt}:{plain}".encode()).hexdigest(), h
-        )
-    # bcrypt verification
+    """Accept only bcrypt hashes. Legacy SHA-256 accounts require controlled migration."""
+    if not isinstance(hashed, str) or not hashed.startswith(("$2a$", "$2b$", "$2y$")):
+        return False
     try:
-        return _bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
-    except Exception:
+        return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except (ValueError, TypeError):
         return False
 
 
@@ -70,7 +55,7 @@ def decode_token(token: str) -> dict:
             token, _settings.jwt_secret_key, algorithms=[_settings.jwt_algorithm]
         )
         return payload
-    except JWTError as e:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
