@@ -25,7 +25,9 @@ class Settings(BaseSettings):
 
     # ── Security ─────────────────────────────────────────────────────────────
     jwt_secret_key: str = Field(min_length=32)
-    jwt_algorithm: str = "HS256"
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    # Explicit allowlist for browser frontend origins; empty denies cross-site CORS.
+    cors_origins: str = ""
     access_token_expire_minutes: int = 480  # 8 hours for staff
 
     # ── Database ─────────────────────────────────────────────────────────────

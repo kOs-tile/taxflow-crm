@@ -14,6 +14,7 @@ TEST_DB_PATH = _test_db.name
 os.environ["DATABASE_URL"] = TEST_DB_PATH
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only-abc123"
 os.environ["JWT_ALGORITHM"] = "HS256"
+os.environ["CORS_ORIGINS"] = "https://app.example.test"
 os.environ["ADMIN_EMAIL"] = "test@taxflow.app"
 os.environ["ADMIN_PASSWORD"] = "TestPassword123!"
 
