@@ -50,10 +50,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten in production
+    # Empty by default: same-origin frontend still works. Configure CORS_ORIGINS
+    # to a comma-separated list of exact trusted https:// frontend origins.
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # ─── API Routes ───────────────────────────────────────────────────────────────
